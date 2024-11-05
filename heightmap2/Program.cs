@@ -5,11 +5,22 @@ using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Environments;
 using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using System;
+using System.IO;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Windows.Forms;
 using Noggog;
 using System.Runtime.CompilerServices;
-using System.Drawing.Imaging;
+using SharpNoise;
+using SharpNoise.Builders;
+using SharpNoise.Modules;
+using SharpNoise.Utilities.Imaging;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using ComplexPlanetExample;
 
 namespace heightmap2
 {
@@ -48,6 +59,7 @@ namespace heightmap2
 
         public static Dictionary<FormKey, ICellGetter> _accumulatedCells = new();
         public static Bitmap worldImage = new Bitmap(5000, 5000);
+        public static int newWorldSize = 3500;
         public static int lowestCellX = 0;
         public static int lowestCellY = 0;
         public static int highestCellX = 0;
@@ -56,6 +68,7 @@ namespace heightmap2
         public static int imageWidth = 0;
         public static int imageHeight = 0;
         public static List<Celldata> cellMatrix = new List<Celldata>();
+        public static List<Celldata> createdCellMatrix = new List<Celldata>();
 
         public static void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
@@ -124,6 +137,20 @@ namespace heightmap2
             }
             Console.WriteLine("cellmatrix size = " + cellMatrix.Count);
             ParseCells();
+
+            RunWorldCreator();
+        }
+
+        public static void RunWorldCreator()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new GeneratorSettingsForm());
+        }
+
+        public static void CreateNewCells(SharpNoise.Utilities.Imaging.Image createdImage)
+        {
+            ;
         }
 
         public static void SetLimits(ICellGridGetter? grid)
@@ -155,6 +182,7 @@ namespace heightmap2
 
             imageWidth = (highestCellX - lowestCellX + 1) * (cellSize - 1) + 500;
             imageHeight = (highestCellY - lowestCellY + 1) * (cellSize - 1) + 500;
+
             Bitmap worldImage = new Bitmap(imageWidth, imageHeight);
             Console.WriteLine("imageWidth = " + imageWidth);
             Console.WriteLine("imageHeight= " + imageHeight);
@@ -162,14 +190,14 @@ namespace heightmap2
             Console.WriteLine("highesstx= " + highestCellX);
             Console.WriteLine("lowesty= " + lowestCellX);
             Console.WriteLine("highesty= " + lowestCellX);
-
+            var cellcounter = 0;
             foreach (var celldata in cellMatrix)
             {
                 Point gridPos = celldata.gridpos;
                 sbyte[] heights = celldata.rawHeight;
                 float[,] _raw = new float[cellSize, cellSize];
                 float baseheight = celldata.baseHeight;
-
+                cellcounter += 1;
                 // Fill _raw array
                 for (int i = 0; i < cellSize * cellSize; i++)
                 {
@@ -201,7 +229,7 @@ namespace heightmap2
                         float heightValue = rawPoints[x, y];
                         int colorValue = (int)Remap(heightValue, -5000f, 5000f, 0f, 255f);
                         colorValue = Math.Clamp(colorValue, 0, 255);
-                        Color color = Color.FromArgb(colorValue, colorValue, colorValue);
+                        System.Drawing.Color color = System.Drawing.Color.FromArgb(colorValue, colorValue, colorValue);
 
                         // Flip the y-coordinate
                         int flippedY = (cellSize) - y;
@@ -216,7 +244,7 @@ namespace heightmap2
                     }
                 }
             }
-
+            Console.WriteLine("cell counter = " + cellcounter);
             // Save the image
             worldImage.Save("heightmap.png", ImageFormat.Png);
             Console.WriteLine("Heightmap saved as heightmap.png");
@@ -245,5 +273,4 @@ namespace heightmap2
             return Math.Max(toMin, Math.Min(toMax, to));
         }
     }
-
 }
