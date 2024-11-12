@@ -9,23 +9,26 @@ using System.Windows.Forms;
 using System.Drawing.Imaging;
 using Color = SharpNoise.Utilities.Imaging.Color;
 using SharpNoise.Modules;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ComplexPlanetExample
 {
     public partial class GeneratorSettingsForm : Form
     {
+
+
         public PlanetGenerationSettings GeneratorSettings { get; set; }
 
         public GeneratorSettingsForm()
         {
             InitializeComponent();
-
             GeneratorSettings = new PlanetGenerationSettings();
             propertyGrid.SelectedObject = GeneratorSettings;
         }
 
         private async void startButton_Click(object sender, EventArgs e)
         {
+
 
             var noiseSource = new Perlin
             {
@@ -43,17 +46,15 @@ namespace ComplexPlanetExample
                 DestNoiseMap = noiseMap,
                 SourceModule = noiseSource
             };
-
+            int quotient = ((int)Math.Round((double)GeneratorSettings.GridSize / 33)) * 33;
             noiseMapBuilder.SetBounds(GeneratorSettings.SouthCoord, GeneratorSettings.NorthCoord,
                 GeneratorSettings.WestCoord, GeneratorSettings.EastCoord);
-            noiseMapBuilder.SetDestSize(GeneratorSettings.GridWidth, GeneratorSettings.GridHeight);
+            noiseMapBuilder.SetDestSize(quotient, quotient);
 
             noiseMapBuilder.Build();
 
             var degExtent = GeneratorSettings.EastCoord - GeneratorSettings.WestCoord;
-            var gridExtent = (double)GeneratorSettings.GridWidth;
-
-            Console.WriteLine("78");
+            var gridExtent = (double)quotient;
             var planetImage = new SharpNoise.Utilities.Imaging.Image();
             var planetRenderer = new ImageRenderer();
             planetRenderer.SourceNoiseMap = noiseMap;
@@ -61,9 +62,7 @@ namespace ComplexPlanetExample
             planetRenderer.BuildGrayscaleGradient();
             
             planetRenderer.Render();
-            Console.WriteLine("100");
             planetImage.SaveGdiBitmap("planetgenerated.png", ImageFormat.Png);
-
 
             Application.EnableVisualStyles();
 
@@ -74,8 +73,8 @@ namespace ComplexPlanetExample
             // Create a PictureBox control
             PictureBox pictureBox = new PictureBox
             {
-                Width = 1300,
-                Height = 1000,
+                Width = 1024,
+                Height = 1024,
                 SizeMode = PictureBoxSizeMode.StretchImage,
                 ImageLocation = "planetgenerated.png" // Set the path to your image file
             };

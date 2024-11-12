@@ -36,18 +36,11 @@ namespace ComplexPlanetExample
         public double EastCoord { get; set; }
 
         /// <summary>
-        /// Width of elevation grid, in points.
-        /// </summary>
-        [Description("Width of elevation grid, in points.")]
-        [Category("Image Size")]
-        public int GridWidth { get; set; }
-
-        /// <summary>
         /// Height of elevation grid, in points.
         /// </summary>
-        [Description("Height of elevation grid, in points.")]
+        [Description("size of grid.")]
         [Category("Image Size")]
-        public int GridHeight { get; set; }
+        public int GridSize { get; set; }
 
         /// <summary>
         /// Planet seed.  Change this to generate a different planet.
@@ -86,8 +79,7 @@ namespace ComplexPlanetExample
 
         public PlanetGenerationSettings()
         {
-            GridWidth = 4096;
-            GridHeight = 2048;
+            GridSize = 2048;
             Seed = 0;
             Frequency = 0.03;
             Lacunarity = 2.0;
