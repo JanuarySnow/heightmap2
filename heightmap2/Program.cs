@@ -123,6 +123,12 @@ namespace heightmap2
                     int gridPosX = cellX - midpointX;
                     int gridPosY = cellY - midpointY;
 
+                    // Adjust bounds
+                    if (gridPosX < lowestx) lowestx = gridPosX;
+                    if (gridPosX > highestx) highestx = gridPosX;
+                    if (gridPosY < lowesty) lowesty = gridPosY;
+                    if (gridPosY > highesty) highesty = gridPosY;
+
                     // ... (copy heights from the image)
 
                     for (int j = 0; j <= 32; j++) // y-direction
@@ -191,6 +197,14 @@ namespace heightmap2
                 }
             }
 
+            
+            Worldspace worldspace = AddToSkyrimPatch(highestx, lowestx, highesty, lowesty, cellMatrix, state);
+            WorldSpaceHeightmapToImage(worldspace, state);
+            Console.WriteLine("Heightmap import completed successfully.");
+        }
+        public static Worldspace AddToSkyrimPatch(int highestx, int lowestx, int highesty, int lowesty, List<Celldata> cellMatrix, IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
+        {
+
             // Create the new worldspace
             var worldspace = state.PatchMod.Worldspaces.AddNew();
             worldspace.EditorID = "js_new_worldspace";
@@ -202,8 +216,7 @@ namespace heightmap2
             worldspace.LandDefaults.DefaultLandHeight = -27000.000000f;
             worldspace.LandDefaults.DefaultWaterHeight = -14000.000000f;
             worldspace.DistantLodMultiplier = 1.0f;
-            worldspace.ObjectBoundsMax = new P2Float(highestx, highesty);
-            worldspace.ObjectBoundsMin = new P2Float(lowestx, lowesty);
+            
 
             foreach (Celldata matrixcell in cellMatrix)
             {
@@ -211,6 +224,9 @@ namespace heightmap2
                 newcell.Flags |= Mutagen.Bethesda.Skyrim.Cell.Flag.HasWater;
 
                 newcell.Name = "js_" + matrixcell.gridpos.X + "." + matrixcell.gridpos.Y;
+
+
+                
                 P2Int newgrid = new P2Int
                 {
                     X = matrixcell.gridpos.X,
@@ -243,9 +259,10 @@ namespace heightmap2
                 worldspace.AddCell(newcell);
             }
 
-            state.PatchMod.Worldspaces.AddNew(worldspace.FormKey);
-            WorldSpaceHeightmapToImage(worldspace, state);
-            Console.WriteLine("Heightmap import completed successfully.");
+            worldspace.ObjectBoundsMax = new P2Float(highestx, highesty);
+            worldspace.ObjectBoundsMin = new P2Float(lowestx, lowesty);
+
+            return worldspace;
         }
 
         public static double[,] ReadExistingHeightmapImage()
