@@ -24,6 +24,7 @@ using ComplexPlanetExample;
 using Mutagen.Bethesda.Plugins.Records;
 using FluentResults;
 using NexusMods.Paths;
+using System.Security.Policy;
 
 namespace heightmap2
 {
@@ -67,6 +68,7 @@ namespace heightmap2
         public static int highestCellX = 0;
         public static int highestCellY = 0;
         public static int cellSize = 32;
+        public static int size = 33;
         public static int imageWidth = 0;
         public static int imageHeight = 0;
         public static double minHeight = -8192;
@@ -112,6 +114,9 @@ namespace heightmap2
             // Dictionaries to store edges
             var cellBottomEdges = new Dictionary<(int cellX, int cellY), double[]>();
             var cellRightEdges = new Dictionary<(int cellX, int cellY), double[]>();
+
+            var cellBottomNormals = new Dictionary<(int cellX, int cellY), sbyte[]>();
+            var cellRightNormals = new Dictionary<(int cellX, int cellY), sbyte[]>();
 
             // Process cells from top to bottom
             for (int cellY = 0; cellY < numCellsY; cellY++)
@@ -171,6 +176,9 @@ namespace heightmap2
                     // Compute VHGT data
                     var rawHeight = ComputeVHGTData(cellHeights, Offset);
 
+                    // Compute VNML data
+                    var normalList = ComputeVNMLData(cellHeights);
+
                     // Store the bottom edge and right edge for adjacent cells
                     double[] bottomEdge = new double[33];
                     double[] rightEdge = new double[33];
@@ -185,12 +193,86 @@ namespace heightmap2
                     cellBottomEdges[(cellX, cellY)] = bottomEdge;
                     cellRightEdges[(cellX, cellY)] = rightEdge;
 
+
+                    // Adjust normals along edges
+                    // Left edge
+                    if (cellX > 0)
+                    {
+                        var key = (cellX - 1, cellY);
+                        if (!cellRightNormals.ContainsKey(key))
+                        {
+                            Console.WriteLine($"cellRightNormals does not contain key {key}");
+                            throw new KeyNotFoundException($"cellRightNormals does not contain key {key}");
+                        }
+
+                        var westCellRightNormals = cellRightNormals[key];
+                        for (int j = 0; j < size; j++)
+                        {
+                            int indexCurrent = (j * size + 0) * 3;
+                            int edgeIndex = j * 3;
+
+                            normalList[indexCurrent] = westCellRightNormals[edgeIndex];
+                            normalList[indexCurrent + 1] = westCellRightNormals[edgeIndex + 1];
+                            normalList[indexCurrent + 2] = westCellRightNormals[edgeIndex + 2];
+                        }
+                    }
+
+                    // Top edge
+                    if (cellY > 0)
+                    {
+                        var key = (cellX, cellY - 1);
+                        if (!cellBottomNormals.ContainsKey(key))
+                        {
+                            Console.WriteLine($"cellBottomNormals does not contain key {key}");
+                            throw new KeyNotFoundException($"cellBottomNormals does not contain key {key}");
+                        }
+
+                        var northCellBottomNormals = cellBottomNormals[key];
+                        for (int i = 0; i < size; i++)
+                        {
+                            int indexCurrent = (0 * size + i) * 3;
+                            int edgeIndex = i * 3;
+
+                            normalList[indexCurrent] = northCellBottomNormals[edgeIndex];
+                            normalList[indexCurrent + 1] = northCellBottomNormals[edgeIndex + 1];
+                            normalList[indexCurrent + 2] = northCellBottomNormals[edgeIndex + 2];
+                        }
+                    }
+
+                    sbyte[] bottomEdgeNormals = new sbyte[size * 3];
+
+                    for (int i = 0; i < size; i++)
+                    {
+
+                        int indexCurrent = ((size - 1) * size + i) * 3;
+                        int edgeIndex = i * 3;
+                        bottomEdgeNormals[edgeIndex] = normalList[indexCurrent];
+                        bottomEdgeNormals[edgeIndex + 1] = normalList[indexCurrent + 1];
+                        bottomEdgeNormals[edgeIndex + 2] = normalList[indexCurrent + 2];
+                    }
+                    cellBottomNormals[(cellX, cellY)] = bottomEdgeNormals;
+
+
+                    // Store right edge  normals
+                    sbyte[] rightEdgeNormals = new sbyte[size * 3];
+                    for (int j = 0; j < size; j++)
+                    {
+
+                        int indexCurrent = (j * size + (size - 1)) * 3;
+                        int edgeIndex = j * 3;
+                        rightEdgeNormals[edgeIndex] = normalList[indexCurrent];
+                        rightEdgeNormals[edgeIndex + 1] = normalList[indexCurrent + 1];
+                        rightEdgeNormals[edgeIndex + 2] = normalList[indexCurrent + 2];
+                    }
+                    cellRightNormals[(cellX, cellY)] = rightEdgeNormals;
+
                     // Create Celldata object
                     Celldata matrixcell = new Celldata
                     {
                         gridpos = new Point(gridPosX, gridPosY),
                         baseHeight = Offset,
-                        rawHeight = rawHeight
+                        rawHeight = rawHeight,
+                        normalList = normalList
                     };
 
                     cellMatrix.Add(matrixcell);
@@ -213,10 +295,12 @@ namespace heightmap2
             worldspace.LodWater.SetTo(Skyrim.Water.DefaultWater);
             worldspace.LodWaterHeight = -14000.000000f;
             worldspace.LandDefaults = new WorldspaceLandDefaults();
-            worldspace.LandDefaults.DefaultLandHeight = -27000.000000f;
+            worldspace.LandDefaults.DefaultLandHeight = 10.000000f;
             worldspace.LandDefaults.DefaultWaterHeight = -14000.000000f;
             worldspace.DistantLodMultiplier = 1.0f;
-            
+            worldspace.ObjectBoundsMax = new P2Float(highestx, highesty);
+            worldspace.ObjectBoundsMin = new P2Float(lowestx, lowesty);
+
 
             foreach (Celldata matrixcell in cellMatrix)
             {
@@ -224,9 +308,9 @@ namespace heightmap2
                 newcell.Flags |= Mutagen.Bethesda.Skyrim.Cell.Flag.HasWater;
 
                 newcell.Name = "js_" + matrixcell.gridpos.X + "." + matrixcell.gridpos.Y;
+                newcell.EditorID = "js_" + matrixcell.gridpos.X + "." + matrixcell.gridpos.Y;
 
 
-                
                 P2Int newgrid = new P2Int
                 {
                     X = matrixcell.gridpos.X,
@@ -256,11 +340,32 @@ namespace heightmap2
                 newheightvertexes.Offset = (float)matrixcell.baseHeight;
                 newcell.Landscape.VertexHeightMap = newheightvertexes;
 
+
+                // Convert sbyte[] normalList to IArray2d<P3UInt8>
+                var normalsArray2D = new Array2d<P3UInt8>(size, size, new P3UInt8(0, 0, 0));
+
+                int normalindex = 0;
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
+                    {
+                        sbyte snx = matrixcell.normalList[normalindex++];
+                        sbyte sny = matrixcell.normalList[normalindex++];
+                        sbyte snz = matrixcell.normalList[normalindex++];
+
+                        // Convert sbyte (-128 to 127) to byte (0 to 255)
+                        byte nx = (byte)(snx + 128);
+                        byte ny = (byte)(sny + 128);
+                        byte nz = (byte)(snz + 128);
+
+                        normalsArray2D[x, y] = new P3UInt8(nx, ny, nz);
+                    }
+                }
+
+                newcell.Landscape.VertexNormals = normalsArray2D;
+
                 worldspace.AddCell(newcell);
             }
-
-            worldspace.ObjectBoundsMax = new P2Float(highestx, highesty);
-            worldspace.ObjectBoundsMin = new P2Float(lowestx, lowesty);
 
             return worldspace;
         }
