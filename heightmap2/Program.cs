@@ -25,6 +25,8 @@ using Mutagen.Bethesda.Plugins.Records;
 using FluentResults;
 using NexusMods.Paths;
 using System.Security.Policy;
+using static ICSharpCode.SharpZipLib.Zip.ExtendedUnixData;
+using static System.Windows.Forms.Design.AxImporter;
 
 namespace heightmap2
 {
@@ -321,7 +323,8 @@ namespace heightmap2
                     Point = newgrid
                 };
                 newcell.Landscape = new Mutagen.Bethesda.Skyrim.Landscape(state.PatchMod);
-
+                newcell.Landscape.Flags = new Mutagen.Bethesda.Skyrim.Landscape.Flag();
+                
                 LandscapeVertexHeightMap newheightvertexes = new LandscapeVertexHeightMap();
                 IArray2d<byte> _HeightMap = new Array2d<byte>(33, 33, 0);
 
@@ -339,6 +342,13 @@ namespace heightmap2
                 newheightvertexes.HeightMap.SetTo(_HeightMap);
                 newheightvertexes.Offset = (float)matrixcell.baseHeight;
                 newcell.Landscape.VertexHeightMap = newheightvertexes;
+                newcell.Landscape.Flags |= Mutagen.Bethesda.Skyrim.Landscape.Flag.VertexNormalsHeightMap; 
+                bool hasVertexNormalsHeightMap = (newcell.Landscape.Flags & Mutagen.Bethesda.Skyrim.Landscape.Flag.VertexNormalsHeightMap) == Mutagen.Bethesda.Skyrim.Landscape.Flag.VertexNormalsHeightMap;
+                if (hasVertexNormalsHeightMap) { 
+                    Console.WriteLine("Added VertexNormalsHeightMap flag to landscape"); 
+                } else { 
+                    Console.WriteLine("It ain't there"); 
+                }
 
 
                 // Convert sbyte[] normalList to IArray2d<P3UInt8>
